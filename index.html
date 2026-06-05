@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Kitty Care</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+  background: #1a1a2e;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+#game-container {
+  position: relative;
+  width: 400px;
+  height: 720px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+}
+
+#cat-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 2;
+}
+
+#ui-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+#status-panel {
+  position: absolute;
+  top: 12px; left: 12px; right: 12px;
+  background: rgba(255,255,255,0.92);
+  border-radius: 14px;
+  padding: 12px 16px;
+  pointer-events: auto;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+}
+
+#cat-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#cat-name span {
+  font-size: 12px;
+  color: #888;
+  font-weight: 400;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+  gap: 8px;
+}
+
+.stat-row:last-child { margin-bottom: 0; }
+
+.stat-icon { width: 20px; text-align: center; font-size: 14px; }
+.stat-label { width: 60px; font-size: 11px; color: #666; font-weight: 500; }
+.stat-bar-bg { flex: 1; height: 10px; background: #e8e8e8; border-radius: 5px; overflow: hidden; }
+.stat-bar { height: 100%; border-radius: 5px; transition: width 0.5s ease; }
+.stat-bar.hunger { background: linear-gradient(90deg, #ff6b6b, #ffa94d); }
+.stat-bar.thirst { background: linear-gradient(90deg, #4dabf7, #74c0fc); }
+.stat-bar.happiness { background: linear-gradient(90deg, #ffd43b, #ffe066); }
+.stat-bar.energy { background: linear-gradient(90deg, #69db7c, #8ce99a); }
+.stat-value { width: 32px; text-align: right; font-size: 11px; color: #888; font-weight: 600; }
+
+#action-bar {
+  position: absolute;
+  bottom: 16px; left: 12px; right: 12px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.action-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.action-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 16px rgba(0,0,0,0.2); }
+.action-btn:active { transform: translateY(1px) scale(0.95); }
+.action-btn .icon { font-size: 22px; }
+.action-btn .label { font-size: 9px; color: #666; font-weight: 600; }
+
+#message-bubble {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50px);
+  background: rgba(255,255,255,0.95);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+#message-bubble.show { opacity: 1; }
+
+#mood-indicator {
+  position: absolute;
+  top: 140px;
+  right: 16px;
+  font-size: 28px;
+  pointer-events: none;
+}
+
+#sound-toggle {
+  position: absolute;
+  top: 140px;
+  left: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.9);
+  font-size: 20px;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  transition: transform 0.15s;
+}
+#sound-toggle:active { transform: scale(0.9); }
+
+#edit-hint {
+  position: absolute;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: rgba(255,255,255,0.8);
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+</style>
+</head>
+<body>
+
+<div id="game-container">
+  <canvas id="cat-canvas"></canvas>
+
+  <div id="ui-overlay">
+    <div id="status-panel">
+      <div id="cat-name">Snowball <span>Lv.1 Kitten</span></div>
+      <div class="stat-row">
+        <div class="stat-icon">🍖</div>
+        <div class="stat-label">Hunger</div>
+        <div class="stat-bar-bg"><div class="stat-bar hunger" id="bar-hunger"></div></div>
+        <div class="stat-value" id="val-hunger">80</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-icon">💧</div>
+        <div class="stat-label">Thirst</div>
+        <div class="stat-bar-bg"><div class="stat-bar thirst" id="bar-thirst"></div></div>
+        <div class="stat-value" id="val-thirst">80</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-icon">😸</div>
+        <div class="stat-label">Happiness</div>
+        <div class="stat-bar-bg"><div class="stat-bar happiness" id="bar-happiness"></div></div>
+        <div class="stat-value" id="val-happiness">70</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-label">Energy</div>
+        <div class="stat-bar-bg"><div class="stat-bar energy" id="bar-energy"></div></div>
+        <div class="stat-value" id="val-energy">90</div>
+      </div>
+    </div>
+
+    <div id="mood-indicator">😺</div>
+    <button id="sound-toggle">🔇</button>
+    <div id="message-bubble"></div>
+
+    <div id="action-bar">
+      <button class="action-btn" data-action="feed">
+        <div class="icon">🍖</div>
+        <div class="label">Feed</div>
+      </button>
+      <button class="action-btn" data-action="water">
+        <div class="icon">💧</div>
+        <div class="label">Water</div>
+      </button>
+      <button class="action-btn" data-action="play">
+        <div class="icon">🧶</div>
+        <div class="label">Play</div>
+      </button>
+      <button class="action-btn" data-action="sleep">
+        <div class="icon">💤</div>
+        <div class="label">Sleep</div>
+      </button>
+      <button class="action-btn" data-action="pet">
+        <div class="icon">🤚</div>
+        <div class="label">Pet</div>
+      </button>
+    </div>
+
+    <div id="edit-hint">Tap anywhere to guide your kitty</div>
+  </div>
+</div>
+
+<script>
+// --- Audio System (BGM only) ---
+let audioCtx = null;
+let bgmOn = false;
+let bgmInterval = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playTone(freq, duration, type = 'sine', volume = 0.05, delay = 0) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime + delay);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(audioCtx.currentTime + delay);
+  osc.stop(audioCtx.currentTime + delay + duration);
+}
+
+const bgmNotes = [
+  523, 587, 659, 784, 659, 587, 523, 494,
+  523, 659, 784, 880, 784, 659, 523, 587,
+  659, 784, 880, 1047, 880, 784, 659, 523,
+];
+let bgmIndex = 0;
+
+function startBGM() {
+  initAudio();
+  bgmOn = true;
+  document.getElementById('sound-toggle').textContent = '🔊';
+  bgmIndex = 0;
+  bgmInterval = setInterval(() => {
+    if (!bgmOn) return;
+    const note = bgmNotes[bgmIndex % bgmNotes.length];
+    playTone(note, 0.25, 'sine', 0.05, 0);
+    playTone(note / 2, 0.3, 'triangle', 0.025, 0);
+    bgmIndex++;
+  }, 350);
+}
+
+function stopBGM() {
+  bgmOn = false;
+  document.getElementById('sound-toggle').textContent = '🔇';
+  if (bgmInterval) {
+    clearInterval(bgmInterval);
+    bgmInterval = null;
+  }
+}
+
+document.getElementById('sound-toggle').addEventListener('click', () => {
+  if (bgmOn) { stopBGM(); } else { startBGM(); }
+});
+
+function sfxMeow() {}
+function sfxPurr() {}
+function sfxEat() {}
+function sfxDrink() {}
+function sfxPlay() {}
+function sfxSleep() {}
+function sfxStep() {}
+
+const canvas = document.getElementById('cat-canvas');
+const ctx = canvas.getContext('2d');
+
+const GAME_W = 400;
+const GAME_H = 720;
+canvas.width = GAME_W;
+canvas.height = GAME_H;
+
+// --- Asset Loading ---
+const bgImg = new Image();
+bgImg.src = 'assets/bg.png';
+
+const sprites = {};
+const spriteConfigs = {
+  idle:     { src: 'assets/idle.png', cols: 4, rows: 2, frames: 4, speed: 280, scale: 1.0 },
+  eat:      { src: 'assets/eat.png', cols: 4, rows: 2, frames: 4, speed: 300, scale: 1.0 },
+  drink:    { src: 'assets/drink.png', cols: 4, rows: 2, frames: 4, speed: 300, scale: 1.0 },
+  play:     { src: 'assets/play.png', cols: 4, rows: 3, frames: 8, speed: 250, scale: 1.35 },
+  sleep:    { src: 'assets/sleep.png', cols: 3, rows: 3, frames: 9, speed: 500, scale: 1.6 },
+  walk:     { src: 'assets/walk.png', cols: 4, rows: 2, frames: 4, speed: 180, scale: 1.0 },
+  roll:     { src: 'assets/roll.png', cols: 4, rows: 2, frames: 4, speed: 250, scale: 1.0 },
+  pickedup: { src: 'assets/pickedup.png', cols: 4, rows: 1, frames: 2, speed: 800, scale: 0.55 },
+};
+
+let loadedCount = 0;
+const totalAssets = Object.keys(spriteConfigs).length + 1;
+
+function onAssetLoad() {
+  loadedCount++;
+  if (loadedCount === totalAssets) startGame();
+}
+
+bgImg.onload = onAssetLoad;
+
+Object.entries(spriteConfigs).forEach(([key, cfg]) => {
+  const img = new Image();
+  img.onload = () => {
+    sprites[key] = {
+      img,
+      frameW: img.width / cfg.cols,
+      frameH: img.height / cfg.rows,
+      cols: cfg.cols,
+      rows: cfg.rows,
+      frames: cfg.frames,
+      speed: cfg.speed,
+      scale: cfg.scale || 1.0,
+    };
+    onAssetLoad();
+  };
+  img.src = cfg.src;
+});
+
+// --- Thought Bubble System ---
+const catThoughts = [
+  "I wonder what's behind that door...",
+  "Fish... must have fish...",
+  "Is that a bird outside?!",
+  "Why is the floor so warm?",
+  "Nap time? Nap time.",
+  "What if I knock that thing off...",
+  "I am speed. I am stealth.",
+  "Belly rub? No. Maybe. Yes.",
+  "The meaning of life is tuna.",
+  "I could jump up there...",
+  "What was that sound?!",
+  "Human seems busy... perfect.",
+  "If I fits, I sits.",
+  "One day I'll catch that red dot.",
+  "Do fish think about me too?",
+];
+let thoughtVisible = false;
+let thoughtText = '';
+let thoughtTimer = 0;
+let thoughtDuration = 0;
+let nextThoughtIn = 5000 + Math.random() * 8000;
+
+function updateThoughts(dt) {
+  if (thoughtVisible) {
+    thoughtTimer += dt;
+    if (thoughtTimer >= thoughtDuration) {
+      thoughtVisible = false;
+      nextThoughtIn = 8000 + Math.random() * 12000;
+    }
+  } else {
+    nextThoughtIn -= dt;
+    if (nextThoughtIn <= 0 && !actionLock && !catHeld) {
+      thoughtText = catThoughts[Math.floor(Math.random() * catThoughts.length)];
+      thoughtVisible = true;
+      thoughtTimer = 0;
+      thoughtDuration = 3000 + Math.random() * 2000;
+    }
+  }
+}
+
+// --- Interactive Zones (sofa) ---
+const zones = [
+  { id: 'sofa', x: 310, y: 180, w: 130, h: 90 },
+];
+
+let dragging = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+
+// --- Game State ---
+const state = {
+  hunger: 80,
+  thirst: 80,
+  happiness: 70,
+  energy: 90,
+  level: 1,
+  exp: 0,
+};
+
+let currentAnim = 'idle';
+let animFrame = 0;
+let animTimer = 0;
+let lastTime = 0;
+let actionLock = false;
+
+// Cat dragging state
+let catHeld = false;
+let catDragOffsetX = 0;
+let catDragOffsetY = 0;
+let climbTarget = null;
+
+// Cat position & size (SMALLER now)
+let catX = GAME_W / 2;
+let catY = GAME_H * 0.65;
+let catScale = 0.45;
+let targetX = catX;
+let targetY = catY;
+let isWalking = false;
+let facingLeft = false;
+
+// --- IDLE BEHAVIOR SYSTEM ---
+let idleState = 'sitting';
+let idleTimer = 0;
+let idleStaticFrame = 0;
+let idleDuration = 2000;
+
+function pickIdleBehavior() {
+  const r = Math.random();
+  if (r < 0.55) {
+    // Sit completely still on frame 0
+    idleState = 'sitting';
+    idleStaticFrame = 0;
+    idleDuration = 2500 + Math.random() * 4000;
+  } else if (r < 0.75) {
+    // Sit still, briefly blink (frame 1) once
+    idleState = 'looking';
+    idleStaticFrame = 0;
+    idleDuration = 3000 + Math.random() * 2000;
+  } else {
+    // Short walk
+    idleState = 'wander';
+    targetX = 60 + Math.random() * (GAME_W - 120);
+    targetY = GAME_H * 0.55 + Math.random() * (GAME_H * 0.2);
+    isWalking = true;
+    facingLeft = targetX < catX;
+    currentAnim = 'walk';
+    animFrame = 0;
+    animTimer = 0;
+    idleDuration = 99999;
+  }
+  idleTimer = 0;
+}
+
+function updateIdleBehavior(dt) {
+  if (actionLock || catHeld) return;
+
+  idleTimer += dt;
+
+  if (idleState === 'sitting') {
+    currentAnim = 'idle';
+    animFrame = 0;
+    if (idleTimer >= idleDuration) pickIdleBehavior();
+  }
+  else if (idleState === 'looking') {
+    currentAnim = 'idle';
+    // Stay on frame 0, brief blink at 70% through
+    if (idleTimer > idleDuration * 0.7 && idleTimer < idleDuration * 0.7 + 300) {
+      animFrame = 1;
+    } else {
+      animFrame = 0;
+    }
+    if (idleTimer >= idleDuration) pickIdleBehavior();
+  }
+  else if (idleState === 'wander') {
+    if (isWalking) {
+      const speed = 0.04 * dt;
+      const dx = targetX - catX;
+      const dy = targetY - catY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      // Step sound every ~400ms
+      if (Math.floor(idleTimer / 400) !== Math.floor((idleTimer - dt) / 400)) sfxStep();
+      if (dist < 4) {
+        isWalking = false;
+        catX = targetX;
+        catY = targetY;
+        if (climbTarget) {
+          // Arrived at sofa — jump up
+          catY = climbTarget.y - climbTarget.h * 0.1;
+          showMessage("Comfy up here! 😺");
+          state.happiness = Math.min(100, state.happiness + 5);
+          climbTarget = null;
+          pickIdleBehavior();
+        } else {
+          pickIdleBehavior();
+        }
+      } else {
+        catX += (dx / dist) * speed;
+        catY += (dy / dist) * speed;
+      }
+    } else {
+      pickIdleBehavior();
+    }
+  }
+}
+
+// --- UI Updates ---
+function updateUI() {
+  ['hunger', 'thirst', 'happiness', 'energy'].forEach(stat => {
+    const bar = document.getElementById(`bar-${stat}`);
+    const val = document.getElementById(`val-${stat}`);
+    const v = Math.round(state[stat]);
+    bar.style.width = v + '%';
+    val.textContent = v;
+  });
+
+  const mood = document.getElementById('mood-indicator');
+  const avg = (state.hunger + state.thirst + state.happiness + state.energy) / 4;
+  if (avg > 70) mood.textContent = '😻';
+  else if (avg > 50) mood.textContent = '😺';
+  else if (avg > 30) mood.textContent = '😿';
+  else mood.textContent = '🙀';
+
+  const levelSpan = document.querySelector('#cat-name span');
+  levelSpan.textContent = `Lv.${state.level} ${state.level < 3 ? 'Kitten' : state.level < 6 ? 'Young Cat' : 'Adult Cat'}`;
+}
+
+function showMessage(text, duration = 2000) {
+  const bubble = document.getElementById('message-bubble');
+  bubble.textContent = text;
+  bubble.classList.add('show');
+  setTimeout(() => bubble.classList.remove('show'), duration);
+}
+
+// --- Actions ---
+function doAction(action) {
+  if (actionLock) return;
+
+  switch (action) {
+    case 'feed':
+      if (state.hunger >= 95) { showMessage("I'm full! 🫄"); return; }
+      actionLock = true;
+      sfxEat();
+      playAnim('eat', () => {
+        state.hunger = Math.min(100, state.hunger + 25);
+        state.energy += 5;
+        gainExp(10);
+        showMessage("Yummy! +25 🍖");
+        actionLock = false;
+        pickIdleBehavior();
+      });
+      break;
+    case 'water':
+      if (state.thirst >= 95) { showMessage("Not thirsty! 💧"); return; }
+      actionLock = true;
+      sfxDrink();
+      playAnim('drink', () => {
+        gainExp(8);
+        showMessage("Refreshing! +30 💧");
+        actionLock = false;
+        pickIdleBehavior();
+      });
+      break;
+    case 'play':
+      if (state.energy < 15) { showMessage("Too tired... 😴"); return; }
+      actionLock = true;
+      sfxPlay();
+      playAnim('play', () => {
+        state.energy = Math.max(0, state.energy - 15);
+        state.hunger = Math.max(0, state.hunger - 8);
+        state.thirst = Math.max(0, state.thirst - 5);
+        gainExp(15);
+        showMessage("So fun! +20 😸");
+        actionLock = false;
+        pickIdleBehavior();
+      });
+      break;
+    case 'sleep':
+      if (state.energy >= 95) { showMessage("Not sleepy! ⚡"); return; }
+      actionLock = true;
+      // Sleep plays at bed position (the sprite includes the bed)
+      sfxSleep();
+      playAnim('sleep', () => {
+        state.energy = Math.min(100, state.energy + 35);
+        state.happiness += 5;
+        gainExp(12);
+        showMessage("Zzz... +35 ⚡");
+        actionLock = false;
+        pickIdleBehavior();
+      }, 2);
+      break;
+    case 'pet':
+      actionLock = true;
+      sfxPurr();
+      currentAnim = 'idle';
+      animFrame = 0;
+      // Gentle frame toggle (simulates blink/tail wag)
+      let petTicks = 0;
+      const petInterval = setInterval(() => {
+        petTicks++;
+        animFrame = petTicks % 2 === 0 ? 0 : 1;
+        if (petTicks >= 6) {
+          clearInterval(petInterval);
+          state.happiness = Math.min(100, state.happiness + 10);
+          gainExp(5);
+          showMessage("Purrrr~ +10 😸");
+          actionLock = false;
+          pickIdleBehavior();
+        }
+      }, 400);
+      break;
+  }
+}
+
+function gainExp(amount) {
+  state.exp += amount;
+  const needed = state.level * 50;
+  if (state.exp >= needed) {
+    state.exp -= needed;
+    state.level++;
+    showMessage(`Level Up! Lv.${state.level}! 🎉`, 3000);
+  }
+}
+
+// --- Animation (for action animations) ---
+let animCallback = null;
+let animLoops = 1;
+let animLoopCount = 0;
+
+function playAnim(name, callback, loops = 1) {
+  currentAnim = name;
+  animFrame = 0;
+  animTimer = 0;
+  animCallback = callback;
+  animLoops = loops;
+  animLoopCount = 0;
+}
+
+function updateAnimation(dt) {
+  if (!actionLock && !catHeld && idleState !== 'wander') return;
+
+  const sprite = sprites[currentAnim];
+  if (!sprite) return;
+
+  animTimer += dt;
+  if (animTimer >= sprite.speed) {
+    animTimer -= sprite.speed;
+    animFrame++;
+    if (animFrame >= sprite.frames) {
+      animLoopCount++;
+      if (animCallback && animLoopCount >= animLoops) {
+        const cb = animCallback;
+        animCallback = null;
+        animFrame = 0;
+        cb();
+      } else {
+        animFrame = 0;
+      }
+    }
+  }
+}
+
+// --- Stat Decay ---
+let decayTimer = 0;
+
+function updateDecay(dt) {
+  decayTimer += dt;
+  if (decayTimer >= 3000) {
+    decayTimer -= 3000;
+    state.hunger = Math.max(0, state.hunger - 1.2);
+    state.thirst = Math.max(0, state.thirst - 1.5);
+    state.happiness = Math.max(0, state.happiness - 0.8);
+    state.energy = Math.max(0, state.energy - 0.6);
+    updateUI();
+  }
+}
+
+// --- Render ---
+function render() {
+  ctx.clearRect(0, 0, GAME_W, GAME_H);
+
+  // Background
+  if (bgImg.complete) {
+    ctx.drawImage(bgImg, 0, 0, GAME_W, GAME_H);
+  }
+
+  // Draw cat shadow
+  const sprite = sprites[currentAnim];
+  if (!sprite) return;
+
+  const spriteScale = catScale * (sprite.scale || 1.0);
+  const drawW = sprite.frameW * spriteScale;
+  const drawH = sprite.frameH * spriteScale;
+
+  if (!catHeld && currentAnim !== 'sleep') {
+    ctx.save();
+    ctx.translate(catX, catY);
+    ctx.scale(1, 0.4);
+    ctx.beginPath();
+    ctx.arc(0, 0, 25, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Draw cat — bottom of sprite always at catY
+  const col = animFrame % sprite.cols;
+  const row = Math.floor(animFrame / sprite.cols);
+  const sx = col * sprite.frameW;
+  const sy = row * sprite.frameH;
+
+  let drawX = catX;
+  let drawY = catY;
+  if (currentAnim === 'sleep') {
+    drawX = 305;
+    drawY = 395;
+  }
+
+  ctx.save();
+  ctx.translate(drawX, drawY);
+  if (catHeld) {
+    ctx.translate(0, -15);
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 15;
+    ctx.shadowOffsetY = 15;
+  }
+  if (facingLeft && currentAnim !== 'sleep') ctx.scale(-1, 1);
+  ctx.drawImage(sprite.img, sx, sy, sprite.frameW, sprite.frameH, -drawW/2, -drawH, drawW, drawH);
+  ctx.restore();
+
+  // Draw thought bubble
+  if (thoughtVisible && !catHeld) {
+    const bubbleX = catX;
+    const bubbleY = catY - drawH - 10;
+
+    // Small circles leading to bubble
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath();
+    ctx.arc(bubbleX - 5, bubbleY + 15, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(bubbleX - 10, bubbleY + 6, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Main bubble
+    ctx.save();
+    const textWidth = ctx.measureText(thoughtText).width;
+    const bw = Math.min(textWidth + 20, 160);
+    const bh = 36;
+    const bx = bubbleX - bw / 2;
+    const by = bubbleY - bh;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.shadowColor = 'rgba(0,0,0,0.1)';
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 12);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#555';
+    ctx.font = '11px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Wrap text if needed
+    const words = thoughtText.split(' ');
+    let line = '';
+    let lines = [];
+    for (const word of words) {
+      const test = line + (line ? ' ' : '') + word;
+      if (ctx.measureText(test).width > bw - 16) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    lines.push(line);
+    const lineH = 13;
+    const startY = by + bh/2 - (lines.length - 1) * lineH / 2;
+    lines.forEach((l, i) => {
+      ctx.fillText(l, bubbleX, startY + i * lineH);
+    });
+    ctx.restore();
+  }
+}
+
+// --- Game Loop ---
+function gameLoop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const dt = Math.min(timestamp - lastTime, 100);
+  lastTime = timestamp;
+
+  updateAnimation(dt);
+  updateIdleBehavior(dt);
+  updateDecay(dt);
+  updateThoughts(dt);
+  render();
+
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  updateUI();
+  pickIdleBehavior();
+  requestAnimationFrame(gameLoop);
+}
+
+// --- Input: Buttons ---
+document.querySelectorAll('.action-btn').forEach(btn => {
+  btn.addEventListener('click', () => doAction(btn.dataset.action));
+});
+
+// --- Input: Canvas interactions ---
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches ? e.touches[0] : e;
+  return {
+    x: (touch.clientX - rect.left) * (GAME_W / rect.width),
+    y: (touch.clientY - rect.top) * (GAME_H / rect.height),
+  };
+}
+
+function findZoneAt(x, y) {
+  for (const z of zones) {
+    if (x > z.x - z.w/2 && x < z.x + z.w/2 && y > z.y - z.h/2 && y < z.y + z.h/2) {
+      return z;
+    }
+  }
+  return null;
+}
+
+function isCatAt(x, y) {
+  const sprite = sprites[currentAnim];
+  if (!sprite) return false;
+  const spriteScale2 = catScale * (sprite.scale || 1.0);
+  const drawW = sprite.frameW * spriteScale2;
+  const drawH = sprite.frameH * spriteScale2;
+  return x > catX - drawW/2 && x < catX + drawW/2 && y > catY - drawH && y < catY;
+}
+
+let pointerDownPos = null;
+let pointerDownTarget = null;
+let hasMoved = false;
+let longPressTimer = null;
+
+canvas.addEventListener('pointerdown', (e) => {
+  const pos = getCanvasPos(e);
+  pointerDownPos = pos;
+  hasMoved = false;
+
+  if (isCatAt(pos.x, pos.y)) {
+    pointerDownTarget = 'cat';
+    // Long press to pick up (300ms)
+    longPressTimer = setTimeout(() => {
+      if (!hasMoved) {
+        catHeld = true;
+        sfxMeow();
+        catDragOffsetX = pos.x - catX;
+        catDragOffsetY = pos.y - catY;
+        isWalking = false;
+        currentAnim = 'pickedup';
+        animFrame = 0;
+        animTimer = 0;
+        thoughtVisible = false;
+      }
+    }, 300);
+  } else {
+    const zone = findZoneAt(pos.x, pos.y);
+    if (zone) {
+      pointerDownTarget = 'zone';
+    } else {
+      pointerDownTarget = null;
+    }
+  }
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  const pos = getCanvasPos(e);
+  hasMoved = true;
+
+  // Cancel long press if moved
+  if (longPressTimer && !catHeld) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+
+  if (catHeld) {
+    catX = Math.max(40, Math.min(GAME_W - 40, pos.x - catDragOffsetX));
+    catY = Math.max(200, Math.min(GAME_H - 100, pos.y - catDragOffsetY));
+  }
+});
+
+canvas.addEventListener('pointerup', (e) => {
+  const pos = getCanvasPos(e);
+
+  // Clear long press timer
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+
+  if (catHeld && !hasMoved) {
+    // Was held but didn't move -> just release
+  } else if (!catHeld && !hasMoved && pointerDownTarget === 'cat') {
+    // Quick tap on cat -> pet
+    if (!actionLock) doAction('pet');
+  } else if (!catHeld && !hasMoved && pointerDownTarget === 'zone') {
+    // Tapped a zone -> walk cat there and climb
+    const zone = findZoneAt(pos.x, pos.y);
+    if (zone && !actionLock) {
+      targetX = zone.x;
+      targetY = zone.y + zone.h * 0.3;
+      isWalking = true;
+      facingLeft = targetX < catX;
+      currentAnim = 'walk';
+      animFrame = 0;
+      animTimer = 0;
+      idleState = 'wander';
+      idleDuration = 99999;
+      idleTimer = 0;
+      climbTarget = zone;
+    }
+  } else if (!catHeld && !hasMoved && !pointerDownTarget) {
+    // Tapped empty floor -> walk cat there
+    if (!actionLock && pos.y > 200 && pos.y < GAME_H - 100) {
+      targetX = pos.x;
+      targetY = pos.y;
+      isWalking = true;
+      facingLeft = targetX < catX;
+      currentAnim = 'walk';
+      animFrame = 0;
+      animTimer = 0;
+      idleState = 'wander';
+      idleDuration = 99999;
+      idleTimer = 0;
+      climbTarget = null;
+    }
+  }
+
+  if (catHeld) {
+    // Release cat -> return to idle
+    pickIdleBehavior();
+  }
+  catHeld = false;
+  pointerDownTarget = null;
+});
+
+canvas.addEventListener('pointerleave', () => {
+  if (catHeld) pickIdleBehavior();
+  catHeld = false;
+});
+</script>
+</body>
+</html>
