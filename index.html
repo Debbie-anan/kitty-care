@@ -24,6 +24,7 @@ body {
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  background: #f5e6d3;
 }
 
 #cat-canvas {
@@ -332,12 +333,31 @@ const spriteConfigs = {
 let loadedCount = 0;
 const totalAssets = Object.keys(spriteConfigs).length + 1;
 
+let gameStarted = false;
+
 function onAssetLoad() {
   loadedCount++;
-  if (loadedCount === totalAssets) startGame();
+  if (loadedCount === totalAssets && !gameStarted) {
+    gameStarted = true;
+    startGame();
+  }
+}
+
+setTimeout(() => {
+  if (!gameStarted) {
+    console.warn('Asset loading timeout, starting game with', loadedCount, '/', totalAssets, 'assets');
+    gameStarted = true;
+    startGame();
+  }
+}, 10000);
+
+function onAssetError(name) {
+  console.warn('Failed to load asset:', name);
+  onAssetLoad();
 }
 
 bgImg.onload = onAssetLoad;
+bgImg.onerror = () => onAssetError('bg.png');
 
 Object.entries(spriteConfigs).forEach(([key, cfg]) => {
   const img = new Image();
@@ -354,6 +374,7 @@ Object.entries(spriteConfigs).forEach(([key, cfg]) => {
     };
     onAssetLoad();
   };
+  img.onerror = () => onAssetError(cfg.src);
   img.src = cfg.src;
 });
 
