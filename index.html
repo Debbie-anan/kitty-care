@@ -323,7 +323,7 @@ const spriteConfigs = {
   idle:     { src: 'assets/idle.png', cols: 4, rows: 2, frames: 4, speed: 280, scale: 1.0 },
   eat:      { src: 'assets/eat.png', cols: 4, rows: 2, frames: 4, speed: 300, scale: 1.0 },
   drink:    { src: 'assets/drink.png', cols: 4, rows: 2, frames: 4, speed: 300, scale: 1.0 },
-  play:     { src: 'assets/play.png', cols: 4, rows: 3, frames: 8, speed: 250, scale: 1.35 },
+  play:     { src: 'assets/play.png', cols: 4, rows: 3, frames: 8, speed: 420, scale: 1.35 },
   sleep:    { src: 'assets/sleep.png', cols: 3, rows: 3, frames: 9, speed: 500, scale: 1.6 },
   walk:     { src: 'assets/walk.png', cols: 4, rows: 2, frames: 4, speed: 180, scale: 1.0 },
   roll:     { src: 'assets/roll.png', cols: 4, rows: 2, frames: 4, speed: 250, scale: 1.0 },
@@ -499,12 +499,17 @@ function updateIdleBehavior(dt) {
   idleTimer += dt;
 
   if (idleState === 'sitting') {
-    currentAnim = 'idle';
-    animFrame = 0;
+    if (currentAnim !== 'idle') {
+      currentAnim = 'idle';
+      animFrame = 0;
+    }
     if (idleTimer >= idleDuration) pickIdleBehavior();
   }
   else if (idleState === 'looking') {
-    currentAnim = 'idle';
+    if (currentAnim !== 'idle') {
+      currentAnim = 'idle';
+      animFrame = 0;
+    }
     // Stay on frame 0, brief blink at 70% through
     if (idleTimer > idleDuration * 0.7 && idleTimer < idleDuration * 0.7 + 300) {
       animFrame = 1;
@@ -614,7 +619,7 @@ function doAction(action) {
         showMessage("So fun! +20 😸");
         actionLock = false;
         pickIdleBehavior();
-      });
+      }, 2);
       break;
     case 'sleep':
       if (state.energy >= 95) { showMessage("Not sleepy! ⚡"); return; }
@@ -687,7 +692,10 @@ function updateAnimation(dt) {
   if (animTimer >= sprite.speed) {
     animTimer -= sprite.speed;
     animFrame++;
-    if (animFrame >= sprite.frames) {
+    if (catHeld) {
+      // Loop pickedup frames continuously
+      if (animFrame >= sprite.frames) animFrame = 0;
+    } else if (animFrame >= sprite.frames) {
       animLoopCount++;
       if (animCallback && animLoopCount >= animLoops) {
         const cb = animCallback;
@@ -918,10 +926,16 @@ canvas.addEventListener('pointerdown', (e) => {
 
 canvas.addEventListener('pointermove', (e) => {
   const pos = getCanvasPos(e);
-  hasMoved = true;
 
-  // Cancel long press if moved
-  if (longPressTimer && !catHeld) {
+  // Only count as moved if distance exceeds threshold (avoid accidental cancel on mobile)
+  if (pointerDownPos) {
+    const dx = pos.x - pointerDownPos.x;
+    const dy = pos.y - pointerDownPos.y;
+    if (dx * dx + dy * dy > 100) hasMoved = true;
+  }
+
+  // Cancel long press if moved significantly before it triggered
+  if (longPressTimer && !catHeld && hasMoved) {
     clearTimeout(longPressTimer);
     longPressTimer = null;
   }
