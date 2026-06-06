@@ -32,6 +32,7 @@ body {
   top: 0; left: 0;
   width: 100%; height: 100%;
   z-index: 2;
+  touch-action: none;
 }
 
 #ui-overlay {
@@ -324,7 +325,7 @@ const spriteConfigs = {
   eat:      { src: 'assets/eat.png', cols: 4, rows: 2, frames: 4, speed: 300, scale: 1.0 },
   drink:    { src: 'assets/drink.png', cols: 4, rows: 2, frames: 4, speed: 300, scale: 1.0 },
   play:     { src: 'assets/play.png', cols: 4, rows: 3, frames: 8, speed: 420, scale: 1.35 },
-  sleep:    { src: 'assets/sleep.png', cols: 2, rows: 2, frames: 4, speed: 600, scale: 1.0 },
+  sleep:    { src: 'assets/sleep.png', cols: 2, rows: 2, frames: 2, speed: 800, scale: 1.0, chromaKey: true },
   walk:     { src: 'assets/walk.png', cols: 4, rows: 2, frames: 4, speed: 180, scale: 1.0 },
   roll:     { src: 'assets/roll.png', cols: 4, rows: 2, frames: 4, speed: 250, scale: 1.0 },
   pickedup: { src: 'assets/pickedup.png', cols: 4, rows: 1, frames: 2, speed: 800, scale: 0.55 },
@@ -359,11 +360,32 @@ function onAssetError(name) {
 bgImg.onload = onAssetLoad;
 bgImg.onerror = () => onAssetError('bg.png');
 
+function removeChromaKey(img) {
+  const c = document.createElement('canvas');
+  c.width = img.width;
+  c.height = img.height;
+  const cx = c.getContext('2d');
+  cx.drawImage(img, 0, 0);
+  const data = cx.getImageData(0, 0, c.width, c.height);
+  const d = data.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i+1], b = d[i+2];
+    if (g > 100 && g > r * 1.4 && g > b * 1.4) {
+      d[i+3] = 0;
+    }
+  }
+  cx.putImageData(data, 0, 0);
+  const newImg = new Image();
+  newImg.src = c.toDataURL();
+  return newImg;
+}
+
 Object.entries(spriteConfigs).forEach(([key, cfg]) => {
   const img = new Image();
   img.onload = () => {
+    const finalImg = cfg.chromaKey ? removeChromaKey(img) : img;
     sprites[key] = {
-      img,
+      img: finalImg,
       frameW: img.width / cfg.cols,
       frameH: img.height / cfg.rows,
       cols: cfg.cols,
@@ -894,25 +916,24 @@ let hasMoved = false;
 let longPressTimer = null;
 
 canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
   const pos = getCanvasPos(e);
   pointerDownPos = pos;
   hasMoved = false;
 
   if (isCatAt(pos.x, pos.y)) {
     pointerDownTarget = 'cat';
-    // Long press to pick up (300ms)
+    // Long press to pick up (300ms) — fires regardless of finger movement
     longPressTimer = setTimeout(() => {
-      if (!hasMoved) {
-        catHeld = true;
-        sfxMeow();
-        catDragOffsetX = pos.x - catX;
-        catDragOffsetY = pos.y - catY;
-        isWalking = false;
-        currentAnim = 'pickedup';
-        animFrame = 0;
-        animTimer = 0;
-        thoughtVisible = false;
-      }
+      catHeld = true;
+      sfxMeow();
+      catDragOffsetX = 0;
+      catDragOffsetY = 0;
+      isWalking = false;
+      currentAnim = 'pickedup';
+      animFrame = 0;
+      animTimer = 0;
+      thoughtVisible = false;
     }, 300);
   } else {
     const zone = findZoneAt(pos.x, pos.y);
@@ -925,24 +946,18 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 canvas.addEventListener('pointermove', (e) => {
+  e.preventDefault();
   const pos = getCanvasPos(e);
 
-  // Only count as moved if distance exceeds threshold (avoid accidental cancel on mobile)
   if (pointerDownPos) {
     const dx = pos.x - pointerDownPos.x;
     const dy = pos.y - pointerDownPos.y;
-    if (dx * dx + dy * dy > 100) hasMoved = true;
-  }
-
-  // Cancel long press if moved significantly before it triggered
-  if (longPressTimer && !catHeld && hasMoved) {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
+    if (dx * dx + dy * dy > 400) hasMoved = true;
   }
 
   if (catHeld) {
-    catX = Math.max(40, Math.min(GAME_W - 40, pos.x - catDragOffsetX));
-    catY = Math.max(200, Math.min(GAME_H - 100, pos.y - catDragOffsetY));
+    catX = Math.max(40, Math.min(GAME_W - 40, pos.x));
+    catY = Math.max(200, Math.min(GAME_H - 100, pos.y));
   }
 });
 
