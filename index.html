@@ -325,7 +325,7 @@ const spriteConfigs = {
   eat:      { src: 'assets/eat.png', cols: 4, rows: 2, frames: 4, speed: 300, scale: 1.0 },
   drink:    { src: 'assets/drink.png', cols: 4, rows: 2, frames: 4, speed: 300, scale: 1.0 },
   play:     { src: 'assets/play.png', cols: 4, rows: 3, frames: 8, speed: 420, scale: 1.35 },
-  sleep:    { src: 'assets/sleep.png', cols: 2, rows: 2, frames: 2, speed: 800, scale: 1.0, chromaKey: true },
+  sleep:    { src: 'assets/sleep.png', cols: 2, rows: 2, frames: 2, speed: 800, scale: 1.0 },
   walk:     { src: 'assets/walk.png', cols: 4, rows: 2, frames: 4, speed: 180, scale: 1.0 },
   roll:     { src: 'assets/roll.png', cols: 4, rows: 2, frames: 4, speed: 250, scale: 1.0 },
   pickedup: { src: 'assets/pickedup.png', cols: 4, rows: 1, frames: 2, speed: 800, scale: 0.55 },
@@ -360,32 +360,11 @@ function onAssetError(name) {
 bgImg.onload = onAssetLoad;
 bgImg.onerror = () => onAssetError('bg.png');
 
-function removeChromaKey(img) {
-  const c = document.createElement('canvas');
-  c.width = img.width;
-  c.height = img.height;
-  const cx = c.getContext('2d');
-  cx.drawImage(img, 0, 0);
-  const data = cx.getImageData(0, 0, c.width, c.height);
-  const d = data.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i], g = d[i+1], b = d[i+2];
-    if (g > 100 && g > r * 1.4 && g > b * 1.4) {
-      d[i+3] = 0;
-    }
-  }
-  cx.putImageData(data, 0, 0);
-  const newImg = new Image();
-  newImg.src = c.toDataURL();
-  return newImg;
-}
-
 Object.entries(spriteConfigs).forEach(([key, cfg]) => {
   const img = new Image();
   img.onload = () => {
-    const finalImg = cfg.chromaKey ? removeChromaKey(img) : img;
     sprites[key] = {
-      img: finalImg,
+      img,
       frameW: img.width / cfg.cols,
       frameH: img.height / cfg.rows,
       cols: cfg.cols,
