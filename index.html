@@ -45,78 +45,124 @@ body {
 
 #status-panel {
   position: absolute;
-  top: 12px; left: 12px; right: 12px;
-  background: rgba(255,255,255,0.92);
-  border-radius: 14px;
-  padding: 12px 16px;
-  pointer-events: auto;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  top: 10px; left: 10px; right: 10px;
+  padding: 0;
+  pointer-events: none;
 }
 
 #cat-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: none;
+}
+
+#cat-name::before {
+  content: '';
 }
 
 #cat-name span {
-  font-size: 12px;
-  color: #888;
-  font-weight: 400;
+  display: none;
 }
 
 .stat-row {
   display: flex;
   align-items: center;
-  margin-bottom: 5px;
-  gap: 8px;
+  margin-bottom: 6px;
+  gap: 6px;
 }
 
 .stat-row:last-child { margin-bottom: 0; }
 
-.stat-icon { width: 20px; text-align: center; font-size: 14px; }
-.stat-label { width: 60px; font-size: 11px; color: #666; font-weight: 500; }
-.stat-bar-bg { flex: 1; height: 10px; background: #e8e8e8; border-radius: 5px; overflow: hidden; }
-.stat-bar { height: 100%; border-radius: 5px; transition: width 0.5s ease; }
-.stat-bar.hunger { background: linear-gradient(90deg, #ff6b6b, #ffa94d); }
-.stat-bar.thirst { background: linear-gradient(90deg, #4dabf7, #74c0fc); }
-.stat-bar.happiness { background: linear-gradient(90deg, #ffd43b, #ffe066); }
-.stat-bar.energy { background: linear-gradient(90deg, #69db7c, #8ce99a); }
-.stat-value { width: 32px; text-align: right; font-size: 11px; color: #888; font-weight: 600; }
+.stat-icon { width: 22px; text-align: center; font-size: 14px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2)); }
+.stat-label { display: none; }
+.stat-bar-bg {
+  flex: 1; height: 14px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 7px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.08), 0 1px 0 rgba(255,255,255,0.6);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+.stat-bar {
+  height: 100%; border-radius: 7px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+.stat-bar::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 4px; right: 4px;
+  height: 4px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 3px;
+}
+.stat-bar.hunger { background: linear-gradient(90deg, #ff8a65, #ffab91); }
+.stat-bar.thirst { background: linear-gradient(90deg, #64b5f6, #90caf9); }
+.stat-bar.happiness { background: linear-gradient(90deg, #ffca28, #ffe082); }
+.stat-bar.energy { background: linear-gradient(90deg, #81c784, #a5d6a7); }
+.stat-value {
+  width: 30px; text-align: right;
+  font-size: 11px; color: #5d4037;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.6);
+}
 
 #action-bar {
   position: absolute;
-  bottom: 16px; left: 12px; right: 12px;
+  bottom: 14px; left: 10px; right: 10px;
   display: flex;
-  gap: 8px;
+  gap: 10px;
   justify-content: center;
   pointer-events: auto;
 }
 
 .action-btn {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
-  border: none;
+  width: 62px;
+  height: 72px;
+  border-radius: 20px;
+  border: 2.5px solid transparent;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   background: rgba(255,255,255,0.95);
-  box-shadow: 0 3px 12px rgba(0,0,0,0.15);
-  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s, border-color 0.2s;
+  position: relative;
+  overflow: hidden;
 }
 
-.action-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 16px rgba(0,0,0,0.2); }
-.action-btn:active { transform: translateY(1px) scale(0.95); }
-.action-btn .icon { font-size: 22px; }
-.action-btn .label { font-size: 9px; color: #666; font-weight: 600; }
+.action-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 18px;
+  opacity: 0.12;
+  transition: opacity 0.2s;
+}
+
+.action-btn[data-action="feed"] { border-color: #ffab91; }
+.action-btn[data-action="feed"]::before { background: linear-gradient(135deg, #ff8a65, #ffccbc); }
+.action-btn[data-action="water"] { border-color: #90caf9; }
+.action-btn[data-action="water"]::before { background: linear-gradient(135deg, #64b5f6, #bbdefb); }
+.action-btn[data-action="play"] { border-color: #ce93d8; }
+.action-btn[data-action="play"]::before { background: linear-gradient(135deg, #ab47bc, #e1bee7); }
+.action-btn[data-action="sleep"] { border-color: #a5d6a7; }
+.action-btn[data-action="sleep"]::before { background: linear-gradient(135deg, #66bb6a, #c8e6c9); }
+.action-btn[data-action="pet"] { border-color: #ffcc80; }
+.action-btn[data-action="pet"]::before { background: linear-gradient(135deg, #ffa726, #ffe0b2); }
+
+.action-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.1);
+}
+.action-btn:active {
+  transform: translateY(1px) scale(0.93);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.action-btn .icon { font-size: 24px; z-index: 1; }
+.action-btn .label { font-size: 9px; color: #6d4c41; font-weight: 700; z-index: 1; letter-spacing: 0.3px; }
 
 #message-bubble {
   position: absolute;
@@ -322,10 +368,10 @@ bgImg.src = 'assets/bg.png';
 const sprites = {};
 const spriteConfigs = {
   idle:     { src: 'assets/idle.png', cols: 4, rows: 2, frames: 4, speed: 280, scale: 1.0 },
-  eat:      { src: 'assets/eat.png', cols: 4, rows: 2, frames: 4, speed: 300, scale: 1.0 },
-  drink:    { src: 'assets/drink.png', cols: 4, rows: 2, frames: 4, speed: 300, scale: 1.0 },
-  play:     { src: 'assets/play.png', cols: 4, rows: 3, frames: 8, speed: 420, scale: 1.35 },
-  sleep:    { src: 'assets/sleep.png', cols: 2, rows: 2, frames: 1, speed: 800, scale: 0.4 },
+  eat:      { src: 'assets/eat.png', cols: 4, rows: 2, frames: 8, speed: 300, scale: 1.0 },
+  drink:    { src: 'assets/drink.png', cols: 4, rows: 2, frames: 8, speed: 300, scale: 1.0 },
+  play:     { src: 'assets/play.png', cols: 4, rows: 3, frames: 8, speed: 250, scale: 1.35 },
+  sleep:    { src: 'assets/sleep.png', cols: 2, rows: 2, frames: 1, speed: 800, scale: 0.65 },
   walk:     { src: 'assets/walk.png', cols: 4, rows: 2, frames: 4, speed: 180, scale: 1.0 },
   roll:     { src: 'assets/roll.png', cols: 4, rows: 2, frames: 4, speed: 250, scale: 1.0 },
   pickedup: { src: 'assets/pickedup.png', cols: 4, rows: 1, frames: 2, speed: 800, scale: 0.55 },
@@ -620,7 +666,7 @@ function doAction(action) {
         showMessage("So fun! +20 😸");
         actionLock = false;
         pickIdleBehavior();
-      }, 2);
+      }, 1);
       break;
     case 'sleep':
       if (state.energy >= 95) { showMessage("Not sleepy! ⚡"); return; }
