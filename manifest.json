@@ -3,7 +3,7 @@
   "short_name": "Kitty Care",
   "description": "A virtual cat pet game - feed, play, and care for your kitty!",
   "start_url": "./index.html",
-  "display": "standalone",
+  "display": "minimal-ui",
   "orientation": "portrait",
   "background_color": "#f5e6d3",
   "theme_color": "#f5e6d3",
