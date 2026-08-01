@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kitty-care-v2';
+const CACHE_NAME = 'kitty-care-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -37,7 +37,14 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
-  );
+  const url = new URL(e.request.url);
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request))
+    );
+  } else {
+    e.respondWith(
+      caches.match(e.request).then(r => r || fetch(e.request))
+    );
+  }
 });
