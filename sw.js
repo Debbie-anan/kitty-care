@@ -1,9 +1,9 @@
-const CACHE_NAME = 'kitty-care-v1';
+const CACHE_NAME = 'kitty-care-v2';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './assets/bg.png',
+  './assets/bg.jpg',
   './assets/idle.png',
   './assets/walk.png',
   './assets/eat.png',
@@ -16,14 +16,6 @@ const ASSETS = [
   './assets/item_bed.png',
   './assets/item_food.png',
   './assets/item_water.png',
-  './assets/bell.mp3',
-  './assets/eat.mp3',
-  './assets/meow.mp3',
-  './assets/meow2.mp3',
-  './assets/purr.mp3',
-  './assets/sleep.mp3',
-  './assets/step.mp3',
-  './assets/water.mp3',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
